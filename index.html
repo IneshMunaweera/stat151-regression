@@ -1,0 +1,75 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Regression Studio · STAT 151</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f7f8;color:#142f39;font:16px/1.5 system-ui,sans-serif}main{max-width:1190px;margin:auto;padding:28px clamp(15px,4vw,54px) 48px}header{border-bottom:1px solid #cddbdc;padding-bottom:12px;color:#43656c;font-weight:650;letter-spacing:.05em;font-size:.88rem}h1{font:clamp(2.4rem,5vw,4.4rem)/1.1 Georgia,serif;letter-spacing:-.045em;margin:24px 0 6px}p{margin:0 0 18px}h2{font:1.55rem Georgia,serif;margin:0 0 16px}.layout{display:grid;grid-template-columns:255px 1fr;gap:16px}.card,article{border:1px solid #cddbdc;border-radius:14px;background:white;padding:20px}label,.label{display:block;font-size:.9rem;font-weight:600;margin:12px 0 5px}select,button{font:inherit;color:inherit;border:1px solid #b6c8ca;border-radius:7px;padding:8px;background:white}select{width:100%}button{cursor:pointer}input{accent-color:#007d7a}input[type=range]{width:100%}.direction{display:flex}.direction button{flex:1;font-size:.9rem}.direction button[aria-pressed=true]{background:#0a6668;color:white}.plothead,.legend{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:center}.plothead h2{margin:0}.eq{color:#9c4325;background:#fcf1e8;padding:5px 11px;border-radius:6px;font-weight:650}.chart{width:100%;height:320px;display:block}.legend{justify-content:center;color:#496068;font-size:.87rem}.legend span:first-letter{font-weight:bold}.stats,.interpret{display:grid;gap:10px;margin:14px 0 20px}.stats{grid-template-columns:repeat(5,1fr)}.interpret{grid-template-columns:repeat(3,1fr)}article{padding:15px}article strong{display:block;font-size:1.4rem;color:#076866;font-variant-numeric:tabular-nums}small{color:#4c676c;font-size:.85rem}h3{margin:0 0 7px;font-size:1rem}.section{margin:23px 0 8px}.interpret article{border-top:3px solid #4b8a87}.note{color:#48636a}#strengthVal{float:right}button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #f2ad53}@media(max-width:780px){.layout{grid-template-columns:1fr}.stats{grid-template-columns:repeat(auto-fit,minmax(125px,1fr))}.interpret{grid-template-columns:1fr}.chart{height:290px}}
+</style><main><header>STAT 151 &nbsp; / &nbsp; Chapter 13</header><h1>Regression Studio</h1><p class="note">Explore how a least-squares line describes the relationship between two quantitative variables.</p>
+<div class="layout"><section class="card"><h2>Experiment controls</h2><label for="x">Explanatory variable · X</label><select id="x"></select><label for="y">Response variable · Y</label><select id="y"></select><button type="button" id="swap" style="width:100%;margin-top:10px">Reverse X and Y</button><label for="strength">Strength · r² <output id="strengthVal"></output></label><input id="strength" type="range" min="0" max="100" value="64" aria-label="R squared in percent"><div class="label">Direction</div><div class="direction"><button id="pos" aria-pressed="true">Positive</button><button id="neg" aria-pressed="false">Negative</button></div><label><input type="checkbox" id="res"> Show residuals</label></section>
+<section class="card"><div class="plothead"><h2>Scatterplot</h2><span class="eq" id="eq"></span></div><canvas class="chart" id="chart" role="img"></canvas><div class="legend"><span style="color:#007d7a">● &nbsp;24 simulated observations</span><span style="color:#a24c2c">━ &nbsp;Fitted line</span><span>┄ &nbsp;Mean of Y</span></div></section></div>
+<h2 class="section">Where does the variation go?</h2><div class="stats" id="stats"></div>
+<h2 class="section">Interpret the fit</h2><div class="interpret"><article><h3>Slope · b₁</h3><div id="slope"></div></article><article><h3>Correlation · r</h3><div id="cor"></div></article><article><h3>Explained variation · r²</h3><div id="det"></div></article></div>
+<section class="card"><h2>Try it yourself</h2><ol style="padding-left:1.35em;display:grid;gap:12px;margin:0">
+<li><b>Change the strength.</b> Turn on “Show residuals” and move r² from 0 to 1. What happens to the vertical gaps between the points and the line? What happens to SSE?</li>
+<li><b>Change the direction.</b> Set r² to 0.64. Before switching from positive to negative, predict what will happen to the slope, r, and r². Check your prediction.</li>
+<li><b>Reverse X and Y.</b> Predict grade from exam time, then use “Reverse X and Y” to predict exam time from grade. Read both slope interpretations aloud. Which statistics stay the same?</li>
+<li><b>Change the scales.</b> Put exam time on X in hours and grade on Y as a percentage. Switch hours to minutes. What happens to the slope? Now switch the grade to points out of 50. What happens to SST, SSR, SSE, and r²?</li>
+</ol></section></main>
+<script>
+const el=id=>document.getElementById(id);
+const variables=[
+ {name:'Exam time',unit:'hours',one:'hour',mean:1.5,scale:.25,kind:'time'},
+ {name:'Exam grade',unit:'%',one:'percentage point',delta:'percentage points',mean:72,scale:7,kind:'grade'},
+ {name:'Exam time',unit:'minutes',one:'minute',mean:90,scale:15,kind:'time'},
+ {name:'Exam grade',unit:'points out of 50',one:'point',delta:'points',mean:36,scale:3.5,kind:'grade'}
+];
+const n=24, mean=a=>a.reduce((s,v)=>s+v,0)/a.length;
+function standardize(a){const m=mean(a),sd=Math.sqrt(mean(a.map(v=>(v-m)**2)));return a.map(v=>(v-m)/sd)}
+const u=standardize(Array.from({length:n},(_,i)=>i));
+let seed=151;function random(){seed=(1664525*seed+1013904223)>>>0;return seed/4294967296}
+const noise=u.map(()=>random()+random()+random()), projection=mean(noise.map((v,i)=>v*u[i]));
+const z=standardize(noise.map((v,i)=>v-projection*u[i]));
+let direction=1;
+for(const id of ['x','y'])variables.forEach((v,i)=>el(id).add(new Option(v.name+' ('+v.unit+')',i)));
+el('y').value=1;
+function fit(X,Y,f,sign){const rho=sign*Math.sqrt(f);
+ const grades=u.map((v,i)=>rho*v+Math.sqrt(1-f)*z[i]);
+ const values=variable=>(variable.kind==='time'?u:grades).map(v=>variable.mean+variable.scale*v);
+ const x=values(X),y=values(Y);
+ const mx=mean(x),my=mean(y),ss=(a,m)=>a.reduce((s,v)=>s+(v-m)**2,0);
+ const sxx=ss(x,mx),sst=ss(y,my),cross=x.reduce((s,v,i)=>s+(v-mx)*(y[i]-my),0);
+ const b=f===0?0:cross/sxx,a=my-b*mx,p=x.map(v=>a+b*v);
+ const ssr=ss(p,my),sse=y.reduce((s,v,i)=>s+(v-p[i])**2,0);
+ return {x,y,p,b,a,my,ssr,sst,sse,r:f===0?0:cross/Math.sqrt(sxx*sst),r2:ssr/sst}}
+function fmt(v,k=2){return (Math.abs(v)<.5*10**-k?0:v).toFixed(k)}
+function draw(d,X,Y){const c=el('chart'),w=c.clientWidth,h=c.clientHeight,px=devicePixelRatio||1;c.width=w*px;c.height=h*px;const g=c.getContext('2d');g.scale(px,px);
+ const left=61,right=w-18,top=22,bottom=h-47;
+ const limit=X.kind==="time"?2:3;
+ const xx=v=>left+(v-X.mean+limit*X.scale)/(2*limit*X.scale)*(right-left);
+ const yy=v=>bottom-(v-Y.mean+3*Y.scale)/(6*Y.scale)*(bottom-top);
+ function line(x1,y1,x2,y2,color,width=1,dash=[]){g.beginPath();g.setLineDash(dash);g.strokeStyle=color;g.lineWidth=width;g.moveTo(x1,y1);g.lineTo(x2,y2);g.stroke();g.setLineDash([])}
+ g.font='13px system-ui';g.fillStyle='#48636a';for(let k=-3;k<=3;k++){const v=Y.mean+k*Y.scale,l=yy(v);line(left,l,right,l,'#e3eaea');g.textAlign='right';g.fillText(+v.toFixed(2),left-7,l+4)}
+ g.textAlign='center';for(let k=-limit;k<=limit;k++){const v=X.mean+k*X.scale;g.fillText(+v.toFixed(2),xx(v),bottom+19)}
+ g.fillText(X.name+' ('+X.unit+')',(left+right)/2,h-4);g.save();g.translate(13,(top+bottom)/2);g.rotate(-Math.PI/2);g.fillText(Y.name+' ('+Y.unit+')',0,0);g.restore();
+ line(left,yy(d.my),right,yy(d.my),'#71858b',1.5,[6,4]);
+ if(el('res').checked)d.x.forEach((v,i)=>line(xx(v),yy(d.y[i]),xx(v),yy(d.p[i]),'#79949b',1.5));
+ const lo=Math.min(...d.x),hi=Math.max(...d.x);line(xx(lo),yy(d.a+d.b*lo),xx(hi),yy(d.a+d.b*hi),'#bc582b',3);
+ d.x.forEach((v,i)=>{g.beginPath();g.arc(xx(v),yy(d.y[i]),4.8,0,2*Math.PI);g.fillStyle='#0b807f';g.fill();g.strokeStyle='white';g.lineWidth=1;g.stroke()});
+ c.setAttribute('aria-label',Y.name+' versus '+X.name+'. '+el('eq').textContent+'. Correlation '+fmt(d.r))}
+function render(){const xi=+el('x').value,yi=+el('y').value,X=variables[xi],Y=variables[yi],f=+el('strength').value/100,d=fit(X,Y,f,direction);
+ const xn=X.name.toLowerCase(),yn=Y.name.toLowerCase(),pct=Math.round(d.r2*100)+'%',mag=Math.abs(d.r),sign=d.r<0?'negative':'positive';
+ el('strengthVal').textContent=fmt(f);el('eq').textContent='ŷ = '+fmt(d.a)+(d.b<0?' − ':' + ')+fmt(Math.abs(d.b),Math.abs(d.b)<.1&&d.b!==0?4:2)+'x';
+ el('pos').setAttribute('aria-pressed',direction===1);el('neg').setAttribute('aria-pressed',direction===-1);
+ el('stats').innerHTML=[['r',fmt(d.r),'Correlation'],['SST',fmt(d.sst),'Total variation'],['SSR',fmt(d.ssr),'Explained variation'],['SSE',fmt(d.sse),'Residual variation'],['r² = SSR / SST',fmt(d.r2),pct+' explained']].map(([k,v,l])=>'<article><b>'+k+'</b><strong>'+v+'</strong><small>'+l+'</small></article>').join('');
+ el('slope').textContent=f?'For each additional '+X.one+' of '+xn+', the fitted line predicts '+(d.b>0?'an increase':'a decrease')+' of '+fmt(Math.abs(d.b),Math.abs(d.b)<.1&&d.b!==0?4:2)+' '+(Y.delta||Y.unit)+' in '+yn+'.':'The fitted line predicts the same '+yn+' at every value of '+xn+'.';
+ el('cor').textContent=!f?'There is no linear association between '+xn+' and '+yn+' in these data.':'The simulated data show a '+(f===1?'perfect':mag>=.7?'strong':mag>=.4?'moderate':'weak')+' '+sign+' linear association. Higher values of '+xn+(f===1?' correspond to ':' tend to go with ')+(d.r>0?'higher ':'lower ')+yn+'.';
+ el('det').textContent='The linear regression on '+xn+' explains '+pct+' of the observed variation in '+yn+'. The remaining '+(100-Math.round(d.r2*100))+'% is residual variation.';
+ draw(d,X,Y)}
+function reverseAxes(){const oldX=el('x').value;el('x').value=el('y').value;el('y').value=oldX;rememberAxes()}
+let lastX=0,lastY=1;
+function rememberAxes(){lastX=+el('x').value;lastY=+el('y').value;render()}
+for(const id of ['x','y'])el(id).onchange=()=>{
+ if(variables[+el('x').value].kind===variables[+el('y').value].kind)
+   el(id==='x'?'y':'x').value=id==='x'?lastX:lastY;
+ rememberAxes()
+};
+el('swap').onclick=reverseAxes;
+el('pos').onclick=()=>{direction=1;render()};el('neg').onclick=()=>{direction=-1;render()};el('strength').oninput=el('res').onchange=render;window.addEventListener('resize',render);render();
+</script></html>
